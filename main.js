@@ -51,10 +51,10 @@ calculateInfo(files);
 console.log("\n");
 // Creating CSV File here
 console.clear();
+console.log("Skipped " + skippedParsing + " files.");
 const newfile = prompt('Enter output filename : ');
 outputCSV(newfile, matchArray);
 console.log("Done parsing and converting into CSV, exiting...")
-console.log(matchArray[0]);
 
 function outputCSV(filename, matchData) {
     outputData = "File,Date,Winner,StageID,P1 Code,P1 Character,P1 Damage,P1 Neutral Wins,P1 Kill Count,P1 Inputs per Minute," +
@@ -82,13 +82,14 @@ function calculateInfo(files) {
         const settings = current_game.getSettings();
         const metadata = current_game.getMetadata();
         const stats = current_game.getStats();
-        let currmatch = new Match(file, metadata.startAt);
+        let currmatch;
         matchArray.push(currmatch);
 
         if (metadata == null) {
             //console.log("null");
             skippedParsing++;
         } else {
+            currmatch = new Match(file, metadata.startAt);
             if (determineWin(stats.overall, 0)) {
                 currmatch.setWinner(metadata.players[0].names.code);
             } else {
