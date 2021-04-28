@@ -7,14 +7,6 @@ var yourLoss = 0;
 var skippedParsing = 0;
 var currFile = 0;
 
-/*
-const replayDirectory = "./replays/";
-const yourCode = "KEYB#665";
-const opponentCode = "FABU#486";
-const yourCharacterID = 0;
-const opponentCharacterID = 19;
-*/
-
 console.clear();
 const replayDirectory = prompt('Replay directory : ');//"./replays/";
 console.clear();
