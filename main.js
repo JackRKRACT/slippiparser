@@ -1,19 +1,32 @@
 const { SlippiGame } = require("@slippi/slippi-js");
 const fs = require('fs');
 const prompt = require('prompt-sync')();
+const Match = require("./match");
 
+/*
+// Update April 28th : Not tracking your wins in new version
 var yourWins = 0;
 var yourLoss = 0;
-var skippedParsing = 0;
+ */
+
 var currFile = 0;
+var skippedParsing = 0;
+var matchArray = [];
+var totalFile;
+
 
 console.clear();
 const replayDirectory = prompt('Replay directory : ');//"./replays/";
 console.clear();
 let files = readDirectory(replayDirectory);
-//let tempfiles = files;
+/* Will add additional functionality for this later, currently unimplemented.
+const filterWinner = prompt('Filter matches with no winner? (Y/N) : ');
+console.clear();
+const filterTeam = prompt('Filter team matches? (Y/N) : ');
+console.clear();
+*/
+
 // Check for slp extension on files!
-//const regex = new RegExp('/.slp/gm');
 for (let k = 0; k < files.length; k++) {
     let temp = files[k].toString().split('.').pop();
     if (temp !== "slp") {
@@ -21,13 +34,122 @@ for (let k = 0; k < files.length; k++) {
         k--;
     }
 }
-const yourCode = prompt('Your code : ');
-console.clear();
-const opponentCode = prompt('Opponent code : ');
-console.clear();
 
+/* Will add additional functionality for this later, currently unimplemented.
+if (filterWinner === "Y") {
+    if (filterTeam === "Y") {
+        // Remove team matches
+    }
+    // Remove matches with 'null data' here.
+} else {
+    totalFile = files.length;
+}
+*/
+
+totalFile = files.length;
+const chunkSize = totalFile / 20;
+var i = Math.floor(1/chunkSize);
+
+console.log("Parsing " + totalFile + " games within the directory " + replayDirectory);
+if (totalFile > 500) {
+    console.log("Warning. Attempting parse a large amount of Slippi files, this process can take up to 1 second for each game.")
+}
+calculateInfo(files);
+console.log("\n");
+// Creating CSV File here
+console.clear();
+const newfile = prompt('Enter output filename : ');
+outputCSV(newfile, matchArray);
+console.log("Done parsing and converting into CSV, exiting...")
+console.log(matchArray[0]);
+
+function outputCSV(filename, matchData) {
+    outputData = "File,Date,Winner,StageID,P1 Code,P1 Character,P1 Damage,P1 Neutral Wins,P1 Kill Count,P1 Inputs per Minute," +
+        "P2 Code,P2 Character,P2 Damage,P2 Neutral Wins,P2 Kill Count,P2 Inputs per Minute\n";
+
+    matchData.forEach(match => {
+        outputData += match.generateRow();
+        outputData += "\n";
+    })
+
+    fs.writeFile(filename+".csv", outputData, function (err) {
+        if (err) return console.log(err);
+    });
+}
+
+function readDirectory(directoryName) {
+    return fs.readdirSync(directoryName);
+}
+
+function calculateInfo(files) {
+    /*
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write(`Progess : ${currFile}/${totalFile} | [${strCurrent}] `);
+    */
+
+    files.forEach(file => {
+        updateProgressBar();
+        currFile++;
+        const current_game = new SlippiGame(replayDirectory + file);
+        const settings = current_game.getSettings();
+        const metadata = current_game.getMetadata();
+        const stats = current_game.getStats();
+        let currmatch = new Match(file, metadata.startAt);
+        matchArray.push(currmatch);
+
+        if (metadata == null) {
+            //console.log("null");
+            skippedParsing++;
+        } else {
+            if (determineWin(stats.overall, 0)) {
+                currmatch.setWinner(metadata.players[0].names.code);
+            } else {
+                currmatch.setWinner(metadata.players[1].names.code);
+            }
+            currmatch.setstage(settings.stageId);
+            currmatch.setport1(metadata.players[0].names.code,settings.players[0].characterId);
+            currmatch.setport2(metadata.players[1].names.code,settings.players[1].characterId);
+
+            // Port 1 Data
+            currmatch.setport1stats(stats.overall[0].totalDamage,stats.overall[0].inputsPerMinute.ratio,stats.overall[0].neutralWinRatio.count,stats.overall[0].killCount);
+            // Port 2 Data
+            currmatch.setport2stats(stats.overall[1].totalDamage,stats.overall[1].inputsPerMinute.ratio,stats.overall[1].neutralWinRatio.count,stats.overall[1].killCount);
+        }
+    })
+}
+
+function determineWin(statdata, userport) {
+    return statdata[userport].killCount === 4;
+}
+
+function updateProgressBar() {
+    if (currFile >= (chunkSize * i)) {
+        if (currFile === totalFile) {
+            strCurrent = "Finished";
+            strEmpty = "";
+        } else {
+            let str1Temp = "@";
+            let str2Temp = "";
+            for (let j = 0; j < i; j++) {
+                str1Temp += "@";
+            }
+            for (let k = 20; k > i+1; k--) {
+                str2Temp += "_";
+            }
+            i++;
+            strCurrent = str1Temp;
+            strEmpty = str2Temp;
+        }
+    }
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write(`Progess : [${strCurrent}${strEmpty}] | ${currFile}/${totalFile}`);
+}
+
+/*
+// Update April 28th : Not using this function anymore, gonna parse all files in directory.
 // Filter results to two player codes
-
 for (let l = 0; l < files.length; l++) {
     //https://www.npmjs.com/package/fs-backwards-stream if I wanna give in to backwards streams
     let current = files[l];
@@ -63,44 +185,25 @@ for (let l = 0; l < files.length; l++) {
 }
 
 console.log("Filtered .slp files to two player codes.");
+
+ */
+
+/*
+// Update April 28th : Not gonna be using player specific or character specific filtering now, parsing all files.
+const yourCode = prompt('Your code : ');
+console.clear();
+const opponentCode = prompt('Opponent code : ');
+console.clear();
 const yourCharacterID = Number(prompt('Your character ID : '));
 console.clear();
 const opponentCharacterID = Number(prompt('Opponent character ID : ')); // Sheik 19 Falcon 0
 console.clear();
 
-const totalFile = files.length;
-const chunkSize = totalFile / 20;
-var i = Math.floor(1/chunkSize);
+ */
 
-console.log("Parsing " + totalFile + " games between " + yourCode + " as " + yourCharacterID + " and " + opponentCode + " as " + opponentCharacterID + " within the directory " + replayDirectory);
-if (totalFile > 500) {
-    console.log("Warning. Attempting parse a large amount of Slippi files, this process can take up to 1 second for each game.")
-}
-calculateInfo(files);
-console.log("\n");
-console.log("Wins : " + yourWins + " | Losses : " + yourLoss + " | Skipped : " + skippedParsing);
-
-function readDirectory(directoryName) {
-    return fs.readdirSync(directoryName);
-}
-
-function calculateInfo(files) {
-    /*
-    process.stdout.clearLine();
-    process.stdout.cursorTo(0);
-    process.stdout.write(`Progess : ${currFile}/${totalFile} | [${strCurrent}] `);
-    */
-
-    files.forEach(file => {
-        currFile++;
-        updateProgressBar();
-        //console.log(replayDirectory + file);
-        const current_game = new SlippiGame(replayDirectory + file);
-        const metaData = current_game.getMetadata();
-        if (metaData == null) {
-            //console.log("null");
-            skippedParsing++;
-        } else {
+/*
+// Update April 28th : Not looking for just win loss anymore, removing this method.
+else {
             const players = metaData.players;
             const stats = current_game.getStats();
             const settings = current_game.getSettings();
@@ -137,35 +240,8 @@ function calculateInfo(files) {
                 skippedParsing++;
             }
         }
-        //console.log("Player 1 : " +  players[0].names.code);
-        //console.log("PLayer 2 : " + players[1].names.code);
-    })
-}
+ */
 
-function determineWin(statdata, usercode, userport) {
-    return statdata[userport].killCount === 4;
-}
-
-function updateProgressBar() {
-    if (currFile >= (chunkSize * i)) {
-        if (currFile === totalFile) {
-            strCurrent = "Finished";
-            strEmpty = "";
-        } else {
-            let str1Temp = "@";
-            let str2Temp = "";
-            for (let j = 0; j < i; j++) {
-                str1Temp += "@";
-            }
-            for (let k = 20; k > i+1; k--) {
-                str2Temp += "_";
-            }
-            i++;
-            strCurrent = str1Temp;
-            strEmpty = str2Temp;
-        }
-    }
-    process.stdout.clearLine();
-    process.stdout.cursorTo(0);
-    process.stdout.write(`Progess : [${strCurrent}${strEmpty}] | ${currFile}/${totalFile}`);
-}
+/* Refactored out for final product
+console.log("Wins : " + yourWins + " | Losses : " + yourLoss + " | Skipped : " + skippedParsing);
+*/
