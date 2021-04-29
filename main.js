@@ -57,12 +57,15 @@ outputCSV(newfile, matchArray);
 console.log("Done parsing and converting into CSV, exiting...")
 
 function outputCSV(filename, matchData) {
-    outputData = "File,Date,Winner,StageID,P1 Code,P1 Character,P1 Damage,P1 Neutral Wins,P1 Kill Count,P1 Inputs per Minute," +
+    let outputData = "";
+    outputData += "File,Date,Winner,StageID,P1 Code,P1 Character,P1 Damage,P1 Neutral Wins,P1 Kill Count,P1 Inputs per Minute," +
         "P2 Code,P2 Character,P2 Damage,P2 Neutral Wins,P2 Kill Count,P2 Inputs per Minute\n";
 
     matchData.forEach(match => {
-        outputData += match.generateRow();
-        outputData += "\n";
+        if (match != null) {
+            outputData += match.generateRow();
+            outputData += "\n";
+        }
     })
 
     fs.writeFile(filename+".csv", outputData, function (err) {
@@ -83,7 +86,6 @@ function calculateInfo(files) {
         const metadata = current_game.getMetadata();
         const stats = current_game.getStats();
         let currmatch;
-        matchArray.push(currmatch);
 
         if (metadata == null) {
             //console.log("null");
@@ -104,6 +106,7 @@ function calculateInfo(files) {
             // Port 2 Data
             currmatch.setport2stats(stats.overall[1].totalDamage,stats.overall[1].inputsPerMinute.ratio,stats.overall[1].neutralWinRatio.count,stats.overall[1].killCount);
         }
+        matchArray.push(currmatch);
     })
 }
 
